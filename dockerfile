@@ -80,8 +80,8 @@ ENV PATH=/home/$USERNAME/miniconda/bin:$PATH
 # ==========================================================
 # 🧠 Python Environment
 # ==========================================================
-RUN pip install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple setuptools wheel && \
-    pip install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple \
+RUN pip install  setuptools wheel && \
+    pip install  \
         numpy scipy scikit-learn scikit-image pandas matplotlib seaborn \
         opencv-python-headless pillow tqdm \
         h5py einops tensorboard wandb \
