@@ -66,7 +66,7 @@ WORKDIR /home/$USERNAME
 # ==========================================================
 # 🧩 Miniconda Installation
 # ==========================================================
-RUN wget https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-py312_24.7.1-0-Linux-x86_64.sh -O ~/miniconda.sh && \
+RUN wget https://mirrors.aliyun.com/anaconda/miniconda/Miniconda3-py312_24.7.1-0-Linux-x86_64.sh -O ~/miniconda.sh && \
     bash ~/miniconda.sh -b -p /home/$USERNAME/miniconda && \
     rm ~/miniconda.sh && \
     echo "export PATH=/home/$USERNAME/miniconda/bin:\$PATH" >> ~/.bashrc && \
