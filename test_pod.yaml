@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  # 🔴 [必填] 修改为你的 Pod 名称，建议包含你的名字以免冲突
+  name: 91mrqiao-test-pod
+  namespace: default
+  labels:
+    app: test-pod
+    # 🟢 [必填] 必须包含此标签，否则会被策略拒绝
+    eks.ebcloud.com/prepaid: "true"
+spec:
+  # 🟢 [限制] 调试 Pod 最长运行 12 小时 (43200秒)，超时会被系统自动查杀
+  activeDeadlineSeconds: 43200
+  
+  # 🔴 [必填] 修改成自己的凭证 (如果镜像是公开的，可删除此行)
+  imagePullSecrets:
+    - name: pw-91mrqiao
+  
+  # 调试 Pod 建议设置为 Never 或 OnFailure，防止配置错误导致无限重启
+  restartPolicy: OnFailure
+  
+  # 节点亲和性设置 (用于指定 GPU 型号)。不要调整，目前节点池内只有 A800 节点
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.ebtech.com/gpu
+                operator: In
+                values:
+                - A800_NVLINK_80GB
+              # 🟡 [建议] 如果因为驱动升级导致 Pod 无法调度，请注释掉下方驱动版本限制
+              - key: cloud.ebtech.com/gpu-driver
+                operator: In
+                values:
+                - 580.65.06 
+  
+  containers:
+  - name: debug-pod-container
+    # 🔴 [必填] 你的镜像地址
+    image: crpi-4h7f6m1tjs5g4t58.cn-hangzhou.personal.cr.aliyuncs.com/91_mrqiao/basic_env:devel
+    # 如果你的镜像发生了改动，请将镜像拉取策略设置为 Always，如果是因为镜像以外的其他原因，请设置为 IfNotPresent
+    imagePullPolicy: IfNotPresent
+
+    # 🔴 [必填] 修改到自己的workspace
+    workingDir: /workspace/qiaohansheng/
+
+    # 请确保镜像内已安装 sshd 并配置好密钥，否则 Pod 会启动失败
+    command: ["/bin/bash", "-c", "sudo /usr/sbin/sshd -D"]
+    
+    ports:
+    - containerPort: 22
+      name: ssh-22
+
+    resources:
+      limits:
+        # 🟢 [限制] 调试 Pod 最多允许申请 "2"，超过会被策略拒绝
+        nvidia.com/gpu: "1"
+        cpu: "10"
+        memory: 100Gi
+    
+    volumeMounts:
+    # 1. 个人工作区 (读写)
+    - name: workspace-volume
+      mountPath: /workspace
+    # 2. 数据集 (谨慎读写)
+    - name: dataset-volume
+      mountPath: /dataset
+    # 3. 公共盘 (必须只读)，云平台提供
+    - name: public-volume
+      mountPath: /public
+      readOnly: true  # 🛡️ [安全强制] 防止误删物理机文件！
+
+    - mountPath: /dev/shm
+      name: dshm
+  
+  volumes:
+  - name: workspace-volume
+    persistentVolumeClaim:
+      claimName: cvrlab-workspace
+  - name: dataset-volume
+    persistentVolumeClaim:
+      claimName: cvrlab-dataset
+  # 挂载宿主机目录（云平台提供）
+  - name: public-volume
+    hostPath:
+      path: /public
+      type: Directory
+  - name: dshm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 16Gi
