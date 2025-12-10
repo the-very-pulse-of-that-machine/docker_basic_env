@@ -1,7 +1,7 @@
 # ==========================================================
 # 📦 Base Image
 # ==========================================================
-FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04
+FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04
 
 LABEL maintainer="91mrqiao <91mrqiao@mail.nwpu.edu.cn>"
 LABEL description="basic_env"
@@ -60,28 +60,40 @@ RUN groupadd --gid $USER_GID npucvr && \
     chmod 0440 /etc/sudoers.d/$USERNAME && \
     mkdir -p /home/$USERNAME/.ssh && chmod 700 /home/$USERNAME/.ssh
 
+
+# ==========================================================
+# 📂 Create /workspace and persistent bashrc BEFORE switching user
+# ==========================================================
+RUN mkdir -p /workspace/$USERNAME && \
+    touch /workspace/$USERNAME/.bashrc_persist && \
+    rm -f /home/$USERNAME/.bashrc && \
+    ln -s /workspace/$USERNAME/.bashrc_persist /home/$USERNAME/.bashrc && \
+    chown -R $USERNAME:npucvr /workspace/$USERNAME
+
+
+
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
 # ==========================================================
-# 🧩 Miniconda Installation
+# 🧩 Miniconda Installation (install to PVC)
 # ==========================================================
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py312_24.7.1-0-Linux-x86_64.sh -O ~/miniconda.sh && \
-    bash ~/miniconda.sh -b -p /home/$USERNAME/miniconda && \
+RUN wget https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-py312_24.7.1-0-Linux-x86_64.sh -O ~/miniconda.sh && \
+    bash ~/miniconda.sh -b -p /workspace/$USERNAME/conda && \
     rm ~/miniconda.sh && \
-    echo "export PATH=/home/$USERNAME/miniconda/bin:\$PATH" >> ~/.bashrc && \
-    echo "source /home/$USERNAME/miniconda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> /home/$USERNAME/.bashrc && \
-    /home/$USERNAME/miniconda/bin/conda config --set auto_activate_base false && \
-    /home/$USERNAME/miniconda/bin/conda clean -afy
+    echo "export PATH=/workspace/$USERNAME/conda/bin:\$PATH" >> /workspace/$USERNAME/.bashrc_persist && \
+    echo "source /workspace/$USERNAME/conda/etc/profile.d/conda.sh" >> /workspace/$USERNAME/.bashrc_persist && \
+    echo "conda activate base" >> /workspace/$USERNAME/.bashrc_persist && \
+    /workspace/$USERNAME/conda/bin/conda config --set auto_activate_base false && \
+    /workspace/$USERNAME/conda/bin/conda clean -afy
 
-ENV PATH=/home/$USERNAME/miniconda/bin:$PATH
+ENV PATH=/workspace/$USERNAME/conda/bin:$PATH
 
 # ==========================================================
 # 🧠 Python Environment
 # ==========================================================
-RUN pip install  setuptools wheel && \
-    pip install  \
+RUN pip install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple --upgrade pip setuptools wheel && \
+    pip install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple \
         numpy scipy scikit-learn scikit-image pandas matplotlib seaborn \
         opencv-python-headless pillow tqdm \
         h5py einops tensorboard wandb \
@@ -95,5 +107,4 @@ RUN pip install  setuptools wheel && \
 # ==========================================================
 # 🚀 Entrypoint
 # ==========================================================
-USER $USERNAME
 CMD ["sudo", "/usr/sbin/sshd", "-D"]
